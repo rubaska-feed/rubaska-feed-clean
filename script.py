@@ -48,6 +48,12 @@ def generate_xml(products):
     availability = "true" if "available" in variant and variant["available"] else "false"
     offer = ET.SubElement(channel, "offer", id=str(product["id"]), available=availability)
 
+    # ВСТАВЬ СЮДА:
+    sku = variant.get("sku")
+    if not sku:
+        sku = str(product["id"])
+    ET.SubElement(offer, "g:id").text = sku
+
     # Назва позиції
     title = product["title"] if product.get("title") else "Немає назви"
     ET.SubElement(offer, "g:title").text = title
@@ -71,18 +77,7 @@ def generate_xml(products):
     # Размер (міжнародний)
     ET.SubElement(offer, "g:size").text = variant["title"]
 
-    # Колір (из тега, если указан, иначе "Невідомо")
-    color = "Невідомо"
-    if product.get("tags"):
-        # ищем тег, который выглядит как цвет, например "білий", "чорний"
-        for tag in product["tags"].split(","):
-            tag = tag.strip().lower()
-            if tag in ["білий", "чорний", "синій", "бежевий", "червоний", "зелений", "сірий"]:
-                color = tag.capitalize()
-                break
-            ET.SubElement(offer, "g:color").text = color
-            
-
+    
     # Виробник (бренд)
     ET.SubElement(offer, "g:brand").text = product.get("vendor", "")
 
