@@ -17,11 +17,11 @@ HEADERS = {
 }
 
 # Получение товаров с Shopify
-def get_products():
-    url = f"{BASE_URL}/products.json?limit=5&published_status=published"
+def get_metafields(product_id):
+    url = f"{BASE_URL}/products/{product_id}/metafields.json"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
-    products = response.json()["products"]
+    return response.json().get("metafields", [])
 
     # Выводим первый товар и его первый вариант (для тестов)
     print("Получено товаров:", len(products))
@@ -44,6 +44,10 @@ def generate_xml(products):
     # Только 1 товар для теста
     product = products[0]
     variant = product['variants'][0]
+
+    # Получаем метафилды товара
+    product_metafields = get_metafields(product["id"])
+
 
     availability = "true" if "available" in variant and variant["available"] else "false"
     offer = ET.SubElement(channel, "offer", id=str(product["id"]), available=availability)
@@ -88,17 +92,18 @@ def generate_xml(products):
     # Остальные поля
     ET.SubElement(offer, "g:product_type").text = product.get("product_type", "")
 
-    # ✅ Цвет (из метафилда custom.color)
-    color = metafield_dict.get("custom.color", "Невідомо")
-    ET.SubElement(offer, "g:color").text = color
+    # ✅ Цвет из metafield shopify.color-pattern
+    color = "Невідомо"
+    for metafield in product_metafields:
+      if metafield.get("namespace") == "shopify" and metafield.get("key") == "color-pattern":
+          color = metafield.get("value", "Невідомо").capitalize()
+          break
 
 
-    # ✅ Склад (как product_detail)
-    fabric = metafield_dict.get("custom.fabric")
-    if fabric:
-        detail = ET.SubElement(offer, "g:product_detail")
-        ET.SubElement(detail, "g:attribute_name").text = "Склад"
-        ET.SubElement(detail, "g:attribute_value").text = fabric
+ET.SubElement(offer, "g:color").text = color
+
+
+
 
     return ET.ElementTree(rss)
 
