@@ -68,6 +68,28 @@ def generate_xml(products):
     # Цена
     ET.SubElement(offer, "g:price").text = f"{variant['price']} UAH"
 
+    # Размер (міжнародний)
+    ET.SubElement(offer, "g:size").text = variant["title"]
+
+    # Колір (из тега, если указан, иначе "Невідомо")
+    color = "Невідомо"
+    if product.get("tags"):
+        # ищем тег, который выглядит как цвет, например "білий", "чорний"
+        for tag in product["tags"].split(","):
+            tag = tag.strip().lower()
+            if tag in ["білий", "чорний", "синій", "бежевий", "червоний", "зелений", "сірий"]:
+                color = tag.capitalize()
+                break
+            ET.SubElement(offer, "g:color").text = color
+            
+
+    # Виробник (бренд)
+    ET.SubElement(offer, "g:brand").text = product.get("vendor", "")
+
+    # Стан
+    ET.SubElement(offer, "g:condition").text = "new"
+    
+
     # Остальные поля
     ET.SubElement(offer, "g:product_type").text = product.get("product_type", "")
     ET.SubElement(offer, "g:brand").text = product.get("vendor", "")
