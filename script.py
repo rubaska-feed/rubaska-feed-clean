@@ -39,61 +39,51 @@ def generate_xml(products):
     ET.SubElement(channel, "link").text = "https://rubaska.prom.ua/"
     ET.SubElement(channel, "g:description").text = "RSS 2.0 product data feed"
 
-    for product in products:
-        variant = product['variants'][0]  # Берем первый вариант (например, размер M)
+    if not products:
+        return ET.ElementTree(rss)
 
-        # Определяем наличие товара с проверкой ключа
-        availability = "true" if "available" in variant and variant["available"] else "false"
+    # ✅ Берем только 1 товар (для теста)
+    product = products[0]
+    variant = product['variants'][0]
 
-        # Обновляем тег 'offer' с атрибутом 'available'
-        offer = ET.SubElement(channel, "offer", id=str(product["id"]), available=availability)
+    # ✅ Наличие
+    availability = "true" if "available" in variant and variant["available"] else "false"
 
-        # Title (Назва позиції)
-        if product["title"]:
-            ET.SubElement(offer, "g:title").text = product["title"]
-        else:
-            ET.SubElement(offer, "g:title").text = "Немає назви"  # Вставляем заглушку, если название пустое
+    # ✅ Тег <offer> с атрибутом available
+    offer = ET.SubElement(channel, "offer", id=str(product["id"]), available=availability)
 
-        # Description
-        ET.SubElement(offer, "g:description").text = product["body_html"]
+    # ✅ Код_товару из метафилда sku → или variant["sku"] → или product["id"]
+    sku = ""
+    if "metafields" in product and isinstance(product["metafields"], dict):
+    sku = product["metafields"].get("sku", "")
+    if not sku:
+    sku = variant.get("sku", "")
+    ET.SubElement(offer, "g:id").text = sku or str(product["id"])
 
-        # Product link
-        ET.SubElement(offer, "g:link").text = f"https://rubaska.com/products/{product['handle']}"
-        ET.SubElement(offer, "g:ads_redirect").text = f"https://rubaska.com/products/{product['handle']}"
+    # ✅ Назва_позиції
+    title = product["title"] if product.get("title") else "Немає назви"
+    ET.SubElement(offer, "g:title").text = title
 
-        # Images (Все изображения)
-        if "images" in product:
-            for image in product["images"]:
-                image_url = image["src"]
-                ET.SubElement(offer, "g:image_link").text = image_url
+    # ✅ Описание
+    ET.SubElement(offer, "g:description").text = product.get("body_html", "")
 
-        # Price
-        ET.SubElement(offer, "g:price").text = f"{variant['price']} UAH"
+    # ✅ Ссылки
+    ET.SubElement(offer, "g:link").text = f"https://rubaska.com/products/{product['handle']}"
+    ET.SubElement(offer, "g:ads_redirect").text = f"https://rubaska.com/products/{product['handle']}"
 
-        # Product details
-        ET.SubElement(offer, "g:product_type").text = product["product_type"]
-        ET.SubElement(offer, "g:brand").text = product["vendor"]
-        ET.SubElement(offer, "g:identifier_exists").text = "no"
-        ET.SubElement(offer, "g:condition").text = "new"
+    # ✅ Все изображения (могут быть несколько <g:image_link>)
+    for image in product.get("images", []):
+        if "src" in image:
+            ET.SubElement(offer, "g:image_link").text = image["src"]
 
-        # SKU из метафилдов (если есть)
-        sku = product['metafields'].get('sku', variant["sku"])  # Берем из метафилдов или вариант SKU
-        ET.SubElement(offer, "g:sku").text = sku
+    # ✅ Цена
+    ET.SubElement(offer, "g:price").text = f"{variant['price']} UAH"
 
-        # Additional fields from metafields (Например, материал, страна)
-        if 'material' in product['metafields']:
-            ET.SubElement(offer, "g:product_detail").text = f"Матеріал: {product['metafields']['material']}"
-        
-        if 'country_of_origin' in product['metafields']:
-            ET.SubElement(offer, "g:product_detail").text = f"Країна виробник: {product['metafields']['country_of_origin']}"
-        
-        if 'fabric_type' in product['metafields']:
-            ET.SubElement(offer, "g:product_detail").text = f"Тип тканини: {product['metafields']['fabric_type']}"
-
-        # Пример дополнительных атрибутов
-        ET.SubElement(offer, "g:product_detail").text = f"Розміри чоловічих сорочок: 46"
-        ET.SubElement(offer, "g:product_detail").text = f"Міжнародний розмір: M"
-        ET.SubElement(offer, "g:product_detail").text = f"Тип сорочкового коміра: Комір-стійка"
+    # ✅ Дополнительные стандартные поля
+    ET.SubElement(offer, "g:product_type").text = product.get("product_type", "")
+    ET.SubElement(offer, "g:brand").text = product.get("vendor", "")
+    ET.SubElement(offer, "g:identifier_exists").text = "no"
+    ET.SubElement(offer, "g:condition").text = "new"
 
     return ET.ElementTree(rss)
 
