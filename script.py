@@ -3,6 +3,7 @@ import requests
 import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
 
+# Загрузка переменных окружения
 load_dotenv()
 
 SHOP_NAME = "676c64"
@@ -15,22 +16,20 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-# Step 1: Get products
+# Получение товаров с Shopify
 def get_products():
     url = f"{BASE_URL}/products.json?limit=5"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
     products = response.json()["products"]
-    
-    # Временно выводим данные о первом продукте и варианте
-    print(products[0])  # Выводим весь продукт
-    print(products[0]['variants'][0])  # Выводим первый вариант товара
+
+    # Выводим первый товар и его первый вариант (для тестов)
+    print(products[0])
+    print(products[0]['variants'][0])
     
     return products
 
-
-# Step 2: Generate XML
-
+# Генерация XML-фида
 def generate_xml(products):
     rss = ET.Element("rss", attrib={"xmlns:g": "http://base.google.com/ns/1.0", "version": "2.0"})
     channel = ET.SubElement(rss, "channel")
@@ -42,48 +41,32 @@ def generate_xml(products):
     if not products:
         return ET.ElementTree(rss)
 
-    # ✅ Берем только 1 товар (для теста)
+    # Только 1 товар для теста
     product = products[0]
     variant = product['variants'][0]
 
-    # ✅ Наличие
     availability = "true" if "available" in variant and variant["available"] else "false"
-
-    # ✅ Тег <offer> с атрибутом available
     offer = ET.SubElement(channel, "offer", id=str(product["id"]), available=availability)
 
-    # ✅ Код_товару из метафилда sku → или variant["sku"] → или product["id"]
-sku = ""
-
-if "metafields" in product and isinstance(product["metafields"], dict):
-    sku = product["metafields"].get("sku", "")
-    
-if not sku:
-    sku = variant.get("sku", "")
-    
-ET.SubElement(offer, "g:id").text = sku or str(product["id"])
-
-
-    # ✅ Назва_позиції
+    # Назва позиції
     title = product["title"] if product.get("title") else "Немає назви"
     ET.SubElement(offer, "g:title").text = title
 
-    # ✅ Описание
+    # Описание
     ET.SubElement(offer, "g:description").text = product.get("body_html", "")
 
-    # ✅ Ссылки
+    # Ссылки
     ET.SubElement(offer, "g:link").text = f"https://rubaska.com/products/{product['handle']}"
     ET.SubElement(offer, "g:ads_redirect").text = f"https://rubaska.com/products/{product['handle']}"
 
-    # ✅ Все изображения (могут быть несколько <g:image_link>)
-    for image in product.get("images", []):
-        if "src" in image:
-            ET.SubElement(offer, "g:image_link").text = image["src"]
+    # Первое изображение
+    if product.get("images"):
+        ET.SubElement(offer, "g:image_link").text = product["images"][0]["src"]
 
-    # ✅ Цена
+    # Цена
     ET.SubElement(offer, "g:price").text = f"{variant['price']} UAH"
 
-    # ✅ Дополнительные стандартные поля
+    # Остальные поля
     ET.SubElement(offer, "g:product_type").text = product.get("product_type", "")
     ET.SubElement(offer, "g:brand").text = product.get("vendor", "")
     ET.SubElement(offer, "g:identifier_exists").text = "no"
@@ -91,7 +74,7 @@ ET.SubElement(offer, "g:id").text = sku or str(product["id"])
 
     return ET.ElementTree(rss)
 
-
+# Запись XML в файл
 if __name__ == "__main__":
     products = get_products()
     xml_tree = generate_xml(products)
