@@ -92,9 +92,18 @@ def generate_xml(products):
 
     # Остальные поля
     ET.SubElement(offer, "g:product_type").text = product.get("product_type", "")
-    ET.SubElement(offer, "g:brand").text = product.get("vendor", "")
-    ET.SubElement(offer, "g:identifier_exists").text = "no"
-    ET.SubElement(offer, "g:condition").text = "new"
+
+    # ✅ Цвет (из метафилда custom.color)
+    color = metafield_dict.get("custom.color", "Невідомо")
+    ET.SubElement(offer, "g:color").text = color
+
+
+    # ✅ Склад (как product_detail)
+    fabric = metafield_dict.get("custom.fabric")
+    if fabric:
+        detail = ET.SubElement(offer, "g:product_detail")
+        ET.SubElement(detail, "g:attribute_name").text = "Склад"
+        ET.SubElement(detail, "g:attribute_value").text = fabric
 
     return ET.ElementTree(rss)
 
