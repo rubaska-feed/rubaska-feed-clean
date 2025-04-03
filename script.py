@@ -53,12 +53,16 @@ def generate_xml(products):
     offer = ET.SubElement(channel, "offer", id=str(product["id"]), available=availability)
 
     # ✅ Код_товару из метафилда sku → или variant["sku"] → или product["id"]
-    sku = ""
-    if "metafields" in product and isinstance(product["metafields"], dict):
+sku = ""
+
+if "metafields" in product and isinstance(product["metafields"], dict):
     sku = product["metafields"].get("sku", "")
-    if not sku:
+    
+if not sku:
     sku = variant.get("sku", "")
-    ET.SubElement(offer, "g:id").text = sku or str(product["id"])
+    
+ET.SubElement(offer, "g:id").text = sku or str(product["id"])
+
 
     # ✅ Назва_позиції
     title = product["title"] if product.get("title") else "Немає назви"
