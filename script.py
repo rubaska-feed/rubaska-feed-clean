@@ -18,14 +18,14 @@ HEADERS = {
 
 # Получение товаров с Shopify
 def get_products():
-    url = f"{BASE_URL}/products.json?limit=5"
+    url = f"{BASE_URL}/products.json?limit=5&published_status=published"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
     products = response.json()["products"]
 
     # Выводим первый товар и его первый вариант (для тестов)
-    print(products[0])
-    print(products[0]['variants'][0])
+    print("Получено товаров:", len(products))
+    print("Первый товар:", products[0]["title"])
     
     return products
 
