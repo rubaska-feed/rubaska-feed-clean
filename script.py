@@ -61,7 +61,9 @@ def generate_xml(products):
 
     # Первое изображение
     if product.get("images"):
-        ET.SubElement(offer, "g:image_link").text = product["images"][0]["src"]
+        for image in product["images"]:
+            if "src" in image:
+                ET.SubElement(offer, "g:image_link").text = image["src"]
 
     # Цена
     ET.SubElement(offer, "g:price").text = f"{variant['price']} UAH"
