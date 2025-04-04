@@ -50,7 +50,8 @@ def generate_xml(products):
     variant = product["variants"][0]
     product_metafields = get_metafields(product["id"])
 
-    item = ET.SubElement(channel, "item")
+    available = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
+    item = ET.SubElement(channel, "item", attrib={"available": available})
 
     ET.SubElement(item, "g:id").text = str(product["id"])
     ET.SubElement(item, "g:title").text = product.get("title", "Без назви")
