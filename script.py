@@ -17,88 +17,91 @@ HEADERS = {
 }
 
 # Получение товаров
-
 def get_products():
-    url = f"{BASE_URL}/products.json?status=active&limit=5"
+    url = f"{BASE_URL}/products.json?limit=5&status=active"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
-    return response.json().get("products", [])
+    return response.json()["products"]
 
-# Получение метафилдов
-
+# Получение метафилдов товара
 def get_metafields(product_id):
     url = f"{BASE_URL}/products/{product_id}/metafields.json"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
     return response.json().get("metafields", [])
 
-# Генерация XML для Prom.ua
-
+# Генерация XML
 def generate_xml(products):
-    yml = ET.Element("yml_catalog", date="2024-04-04")
+    yml = ET.Element("yml_catalog", date="2025-04-04")
     shop = ET.SubElement(yml, "shop")
+
+    # Основные блоки
     ET.SubElement(shop, "name").text = "Rubaska"
     ET.SubElement(shop, "company").text = "Rubaska"
-    ET.SubElement(shop, "url").text = "https://rubaska.com"
+    ET.SubElement(shop, "url").text = "https://rubaska.com/"
+    ET.SubElement(shop, "currencies").append(ET.Element("currency", id="UAH", rate="1"))
 
-    # Категории
     categories = ET.SubElement(shop, "categories")
     ET.SubElement(categories, "category", id="129880800", parentId="129880784").text = "Чоловічі сорочки"
 
-    # Начинаем блок товаров
     offers = ET.SubElement(shop, "offers")
 
     if not products:
         return ET.ElementTree(yml)
 
     product = products[0]
-    variant = product['variants'][0]
+    variant = product["variants"][0]
     product_metafields = get_metafields(product["id"])
 
-    availability = "true" if variant.get("available", False) else "false"
-    offer = ET.SubElement(offers, "offer", {
-        "id": str(product["id"]),
-        "available": availability,
-        "in_stock": "true",
-        "type": "vendor.model",
-        "selling_type": "r",
-        "group_id": "348"
-    })
+    availability = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
 
-    # Назва
-    title = product["title"] if product.get("title") else "Немає назви"
-    name_text = f"{title} {variant['title']}"
-    ET.SubElement(offer, "name").text = name_text
+    offer = ET.SubElement(
+        offers, "offer", {
+            "id": str(product["id"]),
+            "available": availability,
+            "in_stock": "true",
+            "type": "vendor.model",
+            "selling_type": "r",
+            "group_id": "348"
+        }
+    )
 
-    # Название группы
+    # Название и модель
+    ET.SubElement(offer, "name").text = product.get("title", "Без назви")
+    ET.SubElement(offer, "name_ua").text = product.get("title", "Без назви")
+    ET.SubElement(offer, "model").text = "Сорочка чоловіча"
+    ET.SubElement(offer, "typePrefix").text = "Сорочка"
+
+    # Категория и ссылки
     ET.SubElement(offer, "categoryId").text = "129880800"
     ET.SubElement(offer, "portal_category_id").text = "129880800"
-    ET.SubElement(offer, "vendor").text = product.get("vendor", "RUBASKA")
-    ET.SubElement(offer, "model").text = "Сорочка чоловіча"
+    ET.SubElement(offer, "url").text = f"https://rubaska.com/products/{product['handle']}"
+    ET.SubElement(offer, "g:link").text = f"https://rubaska.com/products/{product['handle']}"
+
+    # Описание
+    ET.SubElement(offer, "description").text = product.get("body_html", "")
+    ET.SubElement(offer, "description_ua").text = product.get("body_html", "")
 
     # Цена
-    ET.SubElement(offer, "price").text = variant['price']
+    ET.SubElement(offer, "price").text = variant["price"]
     ET.SubElement(offer, "currencyId").text = "UAH"
 
     # Фото
-    for image in product.get("images", [])[:10]:
+    for image in product.get("images", []):
         if "src" in image:
             ET.SubElement(offer, "g:image_link").text = image["src"]
 
-    # Описание
-    description = product.get("body_html", "")
-    if description:
-        ET.SubElement(offer, "description").text = description
-
-    # SKU -> vendorCode
+    # Артикул
     sku = variant.get("sku") or str(product["id"])
     ET.SubElement(offer, "vendorCode").text = sku
 
-    # Размер
-    ET.SubElement(offer, "g:size").text = variant["title"]
-
-    # Состояние
+    # Бренд и состояние
+    ET.SubElement(offer, "vendor").text = product.get("vendor", "Rubaska")
+    ET.SubElement(offer, "g:brand").text = product.get("vendor", "Rubaska")
     ET.SubElement(offer, "g:condition").text = "new"
+
+    # Размер
+    ET.SubElement(offer, "g:size").text = variant.get("title", "M")
 
     # Цвет из метафилдов
     color = "Невідомо"
@@ -108,10 +111,16 @@ def generate_xml(products):
             break
     ET.SubElement(offer, "g:color").text = color
 
+    # Характеристики группы
+    ET.SubElement(offer, "param", name="Назва_групи").text = "Чоловічі сорочки"
+    ET.SubElement(offer, "param", name="Ідентифікатор_підрозділу").text = "348"
+    ET.SubElement(offer, "param", name="Посилання_підрозділу").text = "https://prom.ua/Muzhskie-rubashki"
+
     return ET.ElementTree(yml)
 
+# Сохраняем XML
 if __name__ == "__main__":
     products = get_products()
     xml_tree = generate_xml(products)
     xml_tree.write("feed.xml", encoding="utf-8", xml_declaration=True)
-    print("✔️ XML-фид для Prom.ua успешно создан: feed.xml")
+    print("✔️ XML-фид успешно создан: feed.xml")
