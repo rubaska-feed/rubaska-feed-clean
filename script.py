@@ -40,7 +40,7 @@ def get_variant_metafields(variant_id):
 # Генерация XML-фида
 def generate_xml(products):
     ET.register_namespace("g", "http://base.google.com/ns/1.0")
-    rss = ET.Element("rss", {"version": "2.0", "xmlns:g": "http://base.google.com/ns/1.0"})
+    rss = ET.Element("rss", {"version": "2.0"})
     channel = ET.SubElement(rss, "channel")
 
     ET.SubElement(channel, "title").text = 'Інтернет-магазин "Rubaska"'
