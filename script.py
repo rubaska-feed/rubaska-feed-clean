@@ -15,20 +15,19 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-
 def get_products():
-    url = f"{BASE_URL}/products.json?limit=50&status=active"
+    url = f"{BASE_URL}/products.json?status=active&limit=1"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
-    return response.json()["products"]
-
+    products = response.json()["products"]
+    print("Получено товаров:", len(products))
+    return products
 
 def get_metafields(product_id):
     url = f"{BASE_URL}/products/{product_id}/metafields.json"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
     return response.json().get("metafields", [])
-
 
 def generate_xml(products):
     rss = ET.Element("rss", attrib={"xmlns:g": "http://base.google.com/ns/1.0", "version": "2.0"})
@@ -43,71 +42,52 @@ def generate_xml(products):
 
     product = products[0]
     variant = product['variants'][0]
-    metafields = get_metafields(product["id"])
+    product_metafields = get_metafields(product["id"])
 
     availability = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
-    offer = ET.SubElement(channel, "offer", {
-        "id": str(product["id"]),
-        "available": availability,
-        "in_stock": "true",
-        "type": "vendor.model",
-        "selling_type": "r"
-    })
+    offer = ET.SubElement(channel, "offer", id=str(product["id"]), available=availability, in_stock="true", type="vendor.model", selling_type="r", group_id="129880800")
 
-    # Назва
-    title = product.get("title", "Немає назви")
-    ET.SubElement(offer, "name").text = title
-    ET.SubElement(offer, "g:title").text = title
-
-    # SKU / Артикул
     sku = variant.get("sku") or str(product["id"])
     ET.SubElement(offer, "vendorCode").text = sku
 
-    # Ссылка
-    handle = product.get("handle", "")
-    ET.SubElement(offer, "g:link").text = f"https://rubaska.com/products/{handle}"
-    ET.SubElement(offer, "g:ads_redirect").text = f"https://rubaska.com/products/{handle}"
+    title = product.get("title") or "Немає назви"
+    ET.SubElement(offer, "name").text = title
+    ET.SubElement(offer, "name_ua").text = title
 
-    # Описание
-    ET.SubElement(offer, "description").text = product.get("body_html", "")
-    ET.SubElement(offer, "description_ua").text = product.get("body_html", "")
+    product_type = product.get("product_type", "")
+    if product_type == "Чоловічі сорочки":
+        model_value = "Сорочка чоловіча"
+    else:
+        model_value = variant.get("sku") or product.get("handle") or title
+    ET.SubElement(offer, "model").text = model_value
 
-    # Фото (все)
+    ET.SubElement(offer, "typePrefix").text = product_type
+    ET.SubElement(offer, "categoryId").text = "129880800"
+
+    ET.SubElement(offer, "price").text = f"{variant['price']}"
+    ET.SubElement(offer, "currencyId").text = "UAH"
+
     for image in product.get("images", []):
         if "src" in image:
             ET.SubElement(offer, "picture").text = image["src"]
 
-    # Цена
-    ET.SubElement(offer, "price").text = f"{variant['price']}"
-
-    # Бренд
-    ET.SubElement(offer, "vendor").text = product.get("vendor", "")
-    ET.SubElement(offer, "g:brand").text = product.get("vendor", "")
-
-    # Стан
+    ET.SubElement(offer, "vendor").text = product.get("vendor", "RUBASKA")
+    ET.SubElement(offer, "country").text = "Туреччина"
     ET.SubElement(offer, "g:condition").text = "new"
 
-    # Размер
-    ET.SubElement(offer, "g:size").text = variant.get("title", "")
+    ET.SubElement(offer, "g:size").text = variant["title"]
 
-    # Цвет из метафилдов
     color = "Невідомо"
-    for mf in metafields:
-        if mf.get("namespace") == "shopify" and mf.get("key") == "color-pattern":
-            color = mf.get("value", "Невідомо").capitalize()
+    for metafield in product_metafields:
+        if metafield.get("namespace") == "shopify" and metafield.get("key") == "color-pattern":
+            color = metafield.get("value", "Невідомо").capitalize()
             break
     ET.SubElement(offer, "g:color").text = color
 
-    # Тип товару
-    product_type = product.get("product_type", "")
-    ET.SubElement(offer, "g:product_type").text = product_type
-
-    # Если это "Чоловічі сорочки", добавляем номер категории
-    if product_type.strip().lower() == "чоловічі сорочки":
-        ET.SubElement(offer, "categoryId").text = "129880800"
+    ET.SubElement(offer, "description").text = f"<![CDATA[{product.get('body_html', '')}]]>"
+    ET.SubElement(offer, "description_ua").text = f"<![CDATA[{product.get('body_html', '')}]]>"
 
     return ET.ElementTree(rss)
-
 
 if __name__ == "__main__":
     products = get_products()
