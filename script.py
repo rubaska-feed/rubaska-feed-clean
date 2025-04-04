@@ -3,7 +3,6 @@ import requests
 import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
 
-# Загрузка переменных окружения
 load_dotenv()
 
 SHOP_NAME = "676c64"
@@ -16,99 +15,90 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-# Получение списка товаров
+
 def get_products():
-    url = f"{BASE_URL}/products.json?limit=5&published_status=published"
+    url = f"{BASE_URL}/products.json?status=active&limit=1"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
-    products = response.json().get("products", [])
+    return response.json()["products"]
 
-    # Выводим первый товар и его первый вариант (для тестов)
-    if products:
-        print("Получено товаров:", len(products))
-        print("Первый товар:", products[0]["title"])
-    return products
 
-# Получение метафилдов товара
 def get_metafields(product_id):
     url = f"{BASE_URL}/products/{product_id}/metafields.json"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
     return response.json().get("metafields", [])
 
-# Генерация XML-фида
-def generate_xml(products):
-    rss = ET.Element("rss", attrib={"xmlns:g": "http://base.google.com/ns/1.0", "version": "2.0"})
-    channel = ET.SubElement(rss, "channel")
 
-    ET.SubElement(channel, "title").text = "Інтернет-магазин Rubaska"
-    ET.SubElement(channel, "link").text = "https://rubaska.prom.ua/"
-    ET.SubElement(channel, "g:description").text = "RSS 2.0 product data feed"
+def generate_xml(products):
+    yml_catalog = ET.Element("yml_catalog", date="2025-04-04")
+    shop = ET.SubElement(yml_catalog, "shop")
+
+    ET.SubElement(shop, "name").text = "Rubaska"
+    ET.SubElement(shop, "company").text = "Rubaska"
+    ET.SubElement(shop, "url").text = "https://rubaska.com/"
+    ET.SubElement(shop, "currencies")
+    ET.SubElement(shop, "categories")  # можем добавить позже категории вручную
+
+    offers = ET.SubElement(shop, "offers")
 
     if not products:
-        return ET.ElementTree(rss)
+        return ET.ElementTree(yml_catalog)
 
-    # Только 1 товар для теста
     product = products[0]
-    variant = product['variants'][0]
+    variant = product["variants"][0]
+    metafields = get_metafields(product["id"])
 
-    # Получаем метафилды товара
-    product_metafields = get_metafields(product["id"])
+    sku = variant.get("sku") or str(product["id"])
+    availability = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
+    group_id = str(product["id"])
 
-    # Наличие
-    availability = "true" if "available" in variant and variant["available"] else "false"
-    offer = ET.SubElement(channel, "offer", id=str(product["id"]), available=availability)
+    offer = ET.SubElement(offers, "offer", {
+        "id": sku,
+        "available": availability,
+        "in_stock": "true",
+        "type": "vendor.model",
+        "selling_type": "r",
+        "group_id": group_id
+    })
 
-    # SKU (или ID товара)
-    sku = variant.get("sku")
-    if not sku:
-        sku = str(product["id"])
-    ET.SubElement(offer, "g:id").text = sku
+    # Основные поля
+    ET.SubElement(offer, "name").text = product["title"]
+    ET.SubElement(offer, "vendor").text = product.get("vendor", "RUBASKA")
+    ET.SubElement(offer, "model").text = variant["title"]
+    ET.SubElement(offer, "vendorCode").text = sku
+    ET.SubElement(offer, "categoryId").text = "348"  # ID вашей категории на Prom
+    ET.SubElement(offer, "price").text = variant["price"]
+    ET.SubElement(offer, "currencyId").text = "UAH"
+    ET.SubElement(offer, "url").text = f"https://rubaska.com/products/{product['handle']}"
 
-    # Название товара
-    ET.SubElement(offer, "g:title").text = product.get("title", "Немає назви")
+    # Картинки
+    for image in product.get("images", []):
+        ET.SubElement(offer, "picture").text = image["src"]
 
     # Описание
-    ET.SubElement(offer, "g:description").text = product.get("body_html", "")
+    description = product.get("body_html", "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    ET.SubElement(offer, "description").text = f"<![CDATA[{description}]]>"
+    ET.SubElement(offer, "description_ua").text = f"<![CDATA[{description}]]>"
 
-    # Ссылки
-    ET.SubElement(offer, "g:link").text = f"https://rubaska.com/products/{product['handle']}"
-    ET.SubElement(offer, "g:ads_redirect").text = f"https://rubaska.com/products/{product['handle']}"
-
-    # Все изображения
-    if product.get("images"):
-        for image in product["images"]:
-            if "src" in image:
-                ET.SubElement(offer, "g:image_link").text = image["src"]
-
-    # Цена
-    ET.SubElement(offer, "g:price").text = f"{variant['price']} UAH"
-
-    # Размер (міжнародний)
-    ET.SubElement(offer, "g:size").text = variant["title"]
-
-    # Виробник (бренд)
-    ET.SubElement(offer, "g:brand").text = product.get("vendor", "")
-
-    # Стан
-    ET.SubElement(offer, "g:condition").text = "new"
-
-    # Тип продукта
-    ET.SubElement(offer, "g:product_type").text = product.get("product_type", "")
+    # Характеристики
+    ET.SubElement(offer, "param", name="Міжнародний розмір").text = variant["title"]
+    ET.SubElement(offer, "param", name="Стан").text = "Новий"
+    ET.SubElement(offer, "param", name="Країна виробник").text = "Туреччина"
 
     # Цвет из метафилда
     color = "Невідомо"
-    for metafield in product_metafields:
-        if metafield.get("namespace") == "shopify" and metafield.get("key") == "color-pattern":
-            color = metafield.get("value", "Невідомо").capitalize()
+    for field in metafields:
+        if field["namespace"] == "shopify" and field["key"] == "color-pattern":
+            color = field.get("value", "").capitalize()
             break
-    ET.SubElement(offer, "g:color").text = color
+    ET.SubElement(offer, "param", name="Колір").text = color
 
-    return ET.ElementTree(rss)
+    return ET.ElementTree(yml_catalog)
 
-# Сохраняем фид
+
 if __name__ == "__main__":
     products = get_products()
     xml_tree = generate_xml(products)
     xml_tree.write("feed.xml", encoding="utf-8", xml_declaration=True)
-    print("✔️ XML-фид успешно создан: feed.xml")
+    print("✔️ XML-фид успішно створено: feed.xml")
