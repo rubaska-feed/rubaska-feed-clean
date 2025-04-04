@@ -32,6 +32,13 @@ def get_metafields(product_id):
     response.raise_for_status()
     return response.json().get("metafields", [])
 
+def get_variant_metafields(variant_id):
+    url = f"{BASE_URL}/variants/{variant_id}/metafields.json"
+    response = requests.get(url, headers=HEADERS)
+    response.raise_for_status()
+    return response.json().get("metafields", [])
+
+
 # Генерация XML-фида
 
 def generate_xml(products):
@@ -81,12 +88,23 @@ def generate_xml(products):
     ET.SubElement(item, "g:vendorCode").text = sku
 
     # Цвет (украинское название цвета из metaobject color.title_ua)
+    # Получаем цвет из метаобъекта, связанного с вариантом
     color = "Невідомо"
-    # Пробуем получить цвет из варианта товара (option2 или option1)
-    color_option = variant.get("option2") or variant.get("option1")
-    if color_option:
-        color = color_option
+    for metafield in variant_metafields:
+        if metafield.get("namespace") == "custom" and metafield.get("key") == "color":
+            # Получаем GID ссылки на metaobject
+            metaobject_id = metafield.get("value")
+            meta_url = f"{BASE_URL}/metaobjects.json?ids={metaobject_id}"
+            response = requests.get(meta_url, headers=HEADERS)
+            if response.ok:
+                metaobjects = response.json().get("metaobjects", [])
+                if metaobjects:
+                    fields = metaobjects[0].get("fields", {})
+                    color = fields.get("title_ua", "Невідомо")
+            break
+        
     ET.SubElement(item, "{http://base.google.com/ns/1.0}color").text = color
+
 
 
     # Видео (если есть)
