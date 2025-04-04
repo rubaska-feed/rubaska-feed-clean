@@ -32,14 +32,17 @@ def get_metafields(product_id):
 
 # Генерация XML
 def generate_xml(products):
+    ET.register_namespace("g", "http://base.google.com/ns/1.0")  # ✅ добавили namespace g
     yml = ET.Element("yml_catalog", date="2025-04-04")
     shop = ET.SubElement(yml, "shop")
 
-    # Основные блоки
+    # Базовая информация
     ET.SubElement(shop, "name").text = "Rubaska"
     ET.SubElement(shop, "company").text = "Rubaska"
     ET.SubElement(shop, "url").text = "https://rubaska.com/"
-    ET.SubElement(shop, "currencies").append(ET.Element("currency", id="UAH", rate="1"))
+
+    currencies = ET.SubElement(shop, "currencies")
+    ET.SubElement(currencies, "currency", id="UAH", rate="1")
 
     categories = ET.SubElement(shop, "categories")
     ET.SubElement(categories, "category", id="129880800", parentId="129880784").text = "Чоловічі сорочки"
@@ -76,11 +79,11 @@ def generate_xml(products):
     ET.SubElement(offer, "categoryId").text = "129880800"
     ET.SubElement(offer, "portal_category_id").text = "129880800"
     ET.SubElement(offer, "url").text = f"https://rubaska.com/products/{product['handle']}"
-    ET.SubElement(offer, "g:link").text = f"https://rubaska.com/products/{product['handle']}"
 
     # Описание
-    ET.SubElement(offer, "description").text = product.get("body_html", "")
-    ET.SubElement(offer, "description_ua").text = product.get("body_html", "")
+    description = product.get("body_html", "").replace("&", "&amp;")
+    ET.SubElement(offer, "description").text = description
+    ET.SubElement(offer, "description_ua").text = description
 
     # Цена
     ET.SubElement(offer, "price").text = variant["price"]
@@ -89,27 +92,27 @@ def generate_xml(products):
     # Фото
     for image in product.get("images", []):
         if "src" in image:
-            ET.SubElement(offer, "g:image_link").text = image["src"]
+            ET.SubElement(offer, "{http://base.google.com/ns/1.0}image_link").text = image["src"]
 
     # Артикул
     sku = variant.get("sku") or str(product["id"])
     ET.SubElement(offer, "vendorCode").text = sku
 
-    # Бренд и состояние
+    # Производитель и состояние
     ET.SubElement(offer, "vendor").text = product.get("vendor", "Rubaska")
-    ET.SubElement(offer, "g:brand").text = product.get("vendor", "Rubaska")
-    ET.SubElement(offer, "g:condition").text = "new"
+    ET.SubElement(offer, "{http://base.google.com/ns/1.0}brand").text = product.get("vendor", "Rubaska")
+    ET.SubElement(offer, "{http://base.google.com/ns/1.0}condition").text = "new"
 
     # Размер
-    ET.SubElement(offer, "g:size").text = variant.get("title", "M")
+    ET.SubElement(offer, "{http://base.google.com/ns/1.0}size").text = variant.get("title", "M")
 
-    # Цвет из метафилдов
+    # Цвет из метафилда
     color = "Невідомо"
     for metafield in product_metafields:
         if metafield.get("namespace") == "shopify" and metafield.get("key") == "color-pattern":
             color = metafield.get("value", "Невідомо").capitalize()
             break
-    ET.SubElement(offer, "g:color").text = color
+    ET.SubElement(offer, "{http://base.google.com/ns/1.0}color").text = color
 
     # Характеристики группы
     ET.SubElement(offer, "param", name="Назва_групи").text = "Чоловічі сорочки"
@@ -118,7 +121,7 @@ def generate_xml(products):
 
     return ET.ElementTree(yml)
 
-# Сохраняем XML
+# Сохранение файла
 if __name__ == "__main__":
     products = get_products()
     xml_tree = generate_xml(products)
