@@ -17,7 +17,6 @@ HEADERS = {
 }
 
 # Получение товаров
-
 def get_products():
     url = f"{BASE_URL}/products.json?limit=5&status=active"
     response = requests.get(url, headers=HEADERS)
@@ -25,30 +24,28 @@ def get_products():
     return response.json()["products"]
 
 # Получение метафилдов товара
-
 def get_metafields(product_id):
     url = f"{BASE_URL}/products/{product_id}/metafields.json"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
     return response.json().get("metafields", [])
 
+# Получение метафилдов варианта
 def get_variant_metafields(variant_id):
     url = f"{BASE_URL}/variants/{variant_id}/metafields.json"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
     return response.json().get("metafields", [])
 
-
 # Генерация XML-фида
-
 def generate_xml(products):
     ET.register_namespace("g", "http://base.google.com/ns/1.0")
-    rss = ET.Element("rss", {"version": "2.0"})
+    rss = ET.Element("rss", {"version": "2.0", "xmlns:g": "http://base.google.com/ns/1.0"})
     channel = ET.SubElement(rss, "channel")
 
     ET.SubElement(channel, "title").text = 'Інтернет-магазин "Rubaska"'
     ET.SubElement(channel, "link").text = "https://rubaska.com/"
-    ET.SubElement(channel, "g:description").text = "RSS 2.0 product data feed"
+    ET.SubElement(channel, "{http://base.google.com/ns/1.0}description").text = "RSS 2.0 product data feed"
 
     if not products:
         return ET.ElementTree(rss)
@@ -56,6 +53,7 @@ def generate_xml(products):
     product = products[0]
     variant = product["variants"][0]
     product_metafields = get_metafields(product["id"])
+    variant_metafields = get_variant_metafields(variant["id"])
 
     available = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
     item = ET.SubElement(channel, "item", attrib={"available": available})
@@ -81,18 +79,16 @@ def generate_xml(products):
 
     # Размер (только название варианта)
     size = variant.get("title", "M").split(" / ")[0]
-    ET.SubElement(item, "{http://base.google.com/ns/1.0}size").text = size
+    ET.SubElement(item, "g:size").text = size
 
     # Артикул
     sku = variant.get("sku") or str(product["id"])
     ET.SubElement(item, "g:vendorCode").text = sku
 
-    # Цвет (украинское название цвета из metaobject color.title_ua)
-    # Получаем цвет из метаобъекта, связанного с вариантом
+    # Цвет (украинское название из Metaobject)
     color = "Невідомо"
     for metafield in variant_metafields:
         if metafield.get("namespace") == "custom" and metafield.get("key") == "color":
-            # Получаем GID ссылки на metaobject
             metaobject_id = metafield.get("value")
             meta_url = f"{BASE_URL}/metaobjects.json?ids={metaobject_id}"
             response = requests.get(meta_url, headers=HEADERS)
@@ -102,12 +98,9 @@ def generate_xml(products):
                     fields = metaobjects[0].get("fields", {})
                     color = fields.get("title_ua", "Невідомо")
             break
-        
-    ET.SubElement(item, "{http://base.google.com/ns/1.0}color").text = color
+    ET.SubElement(item, "g:color").text = color
 
-
-
-    # Видео (если есть)
+    # Видео
     video_url = ""
     for metafield in product_metafields:
         if metafield.get("namespace") == "custom" and metafield.get("key") == "video_url":
@@ -121,7 +114,6 @@ def generate_xml(products):
         ("Країна виробник", "Туреччина"),
         ("Де_знаходиться_товар", "Одеса"),
     ]
-
     for name, value in constant_details:
         detail = ET.SubElement(item, "g:product_detail")
         ET.SubElement(detail, "g:attribute_name").text = name
@@ -129,7 +121,7 @@ def generate_xml(products):
 
     return ET.ElementTree(rss)
 
-# Сохранение файла
+# Сохранение
 if __name__ == "__main__":
     products = get_products()
     xml_tree = generate_xml(products)
