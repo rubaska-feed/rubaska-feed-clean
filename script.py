@@ -72,7 +72,8 @@ def generate_xml(products):
     ET.SubElement(item, "g:condition").text = "new"
 
     # Размер (только название варианта)
-    ET.SubElement(item, "g:size").text = variant.get("title", "M")
+    size = variant.get("title", "M").split(" / ")[0]
+    ET.SubElement(item, "{http://base.google.com/ns/1.0}size").text = size
 
     # Артикул
     sku = variant.get("sku") or str(product["id"])
@@ -80,11 +81,12 @@ def generate_xml(products):
 
     # Цвет (украинское название цвета из metaobject color.title_ua)
     color = "Невідомо"
-    for metafield in product_metafields:
-        if metafield.get("namespace") == "color" and metafield.get("key") == "title_ua":
-            color = metafield.get("value", "Невідомо")
-            break
-    ET.SubElement(item, "g:color").text = color
+    # Пробуем получить цвет из варианта товара (option2 или option1)
+    color_option = variant.get("option2") or variant.get("option1")
+    if color_option:
+        color = color_option
+    ET.SubElement(item, "{http://base.google.com/ns/1.0}color").text = color
+
 
     # Видео (если есть)
     video_url = ""
