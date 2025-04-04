@@ -36,11 +36,11 @@ def get_metafields(product_id):
 
 def generate_xml(products):
     ET.register_namespace("g", "http://base.google.com/ns/1.0")
-    rss = ET.Element("rss", {"version": "2.0", "xmlns:g": "http://base.google.com/ns/1.0"})
+    rss = ET.Element("rss", {"version": "2.0"})
     channel = ET.SubElement(rss, "channel")
 
     ET.SubElement(channel, "title").text = 'Інтернет-магазин "Rubaska"'
-    ET.SubElement(channel, "link").text = "https://rubaska.prom.ua/"
+    ET.SubElement(channel, "link").text = "https://rubaska.com/"
     ET.SubElement(channel, "g:description").text = "RSS 2.0 product data feed"
 
     if not products:
