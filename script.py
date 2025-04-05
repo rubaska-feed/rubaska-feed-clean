@@ -37,6 +37,16 @@ def get_variant_metafields(variant_id):
     response.raise_for_status()
     return response.json().get("metafields", [])
 
+# Получение перевода описания на украинский
+def get_translation(product_id, locale="uk"):
+    url = f"{BASE_URL}/translations/products/{product_id}/{locale}.json"
+    response = requests.get(url, headers=HEADERS)
+    if response.ok:
+        translations = response.json().get("translation", {})
+        return translations.get("body_html", "").strip()
+    return ""
+
+
 # Генерация XML-фида
 def generate_xml(products):
     ET.register_namespace("g", "http://base.google.com/ns/1.0")
@@ -61,13 +71,15 @@ def generate_xml(products):
     # Название и описание (обязательные поля)
     title = product.get("title", "Без назви")
     description = product.get("body_html", "").strip()
+    description_ua = get_translation(product["id"], locale="uk")
 
     ET.SubElement(item, "{http://base.google.com/ns/1.0}title").text = title
     ET.SubElement(item, "name").text = title
     ET.SubElement(item, "name_ua").text = title
     ET.SubElement(item, "{http://base.google.com/ns/1.0}description").text = description
-    ET.SubElement(item, "description").text = description
-    ET.SubElement(item, "description_ua").text = description
+    
+    ET.SubElement(item, "description").text = f"<![CDATA[{description}]]>"
+    ET.SubElement(item, "description").text = f"<![CDATA[{description}]]>"
 
     # Ссылки
     link = f"https://rubaska.com/products/{product['handle']}"
