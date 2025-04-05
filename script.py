@@ -82,6 +82,23 @@ def generate_xml(products):
         size = variant_title_parts[0] if len(variant_title_parts) > 0 else "M"
         color = variant_title_parts[1] if len(variant_title_parts) > 1 else "Невідомо"
         collar_type = variant_title_parts[2] if len(variant_title_parts) > 2 else "Класичний"
+        
+        # Автозаполнение параметров по розміру
+        size_measurements = {
+            "S":   {"Обхват шиї": "38", "Обхват грудей": "98",  "Обхват талії": "90"},
+            "M":   {"Обхват шиї": "39", "Обхват грудей": "104", "Обхват талії": "96"},
+            "L":   {"Обхват шиї": "41", "Обхват грудей": "108", "Обхват талії": "100"},
+            "XL":  {"Обхват шиї": "43", "Обхват грудей": "112", "Обхват талії": "108"},
+            "XXL": {"Обхват шиї": "45", "Обхват грудей": "120", "Обхват талії": "112"},
+            "3XL": {"Обхват шиї": "46", "Обхват грудей": "126", "Обхват талії": "124"},
+        }
+
+        if size in size_measurements:
+            for label, value in size_measurements[size].items():
+                ET.SubElement(offer, "param", name=label).text = value
+
+
+        
         sku = variant.get("sku") or safe_id
         available = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
 
