@@ -47,7 +47,7 @@ def get_translation(product_id, locale="uk"):
         translations = data.get("translation", {})
         body = translations.get("body_html", "").strip()
         if body:
-             if body:
+            return body
     return ""
 
 
