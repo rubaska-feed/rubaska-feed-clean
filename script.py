@@ -125,22 +125,21 @@ def generate_xml(products):
 
     # Цвет (украинское название из Metaobject List)
     color = "Невідомо"
-    for metafield in variant_metafields:
+    for metafield in variant_metafields + product_metafields:  # ищем и в варианте, и в продукте
         if metafield.get("namespace") == "custom" and metafield.get("key") == "color":
             raw_value = metafield.get("value")
             try:
-                objects = json.loads(raw_value)
-                if objects and isinstance(objects, list):
-                    meta_gid = objects[0].get("id")
-                    if meta_gid and "Metaobject/" in meta_gid:
-                        meta_id = meta_gid.split("Metaobject/")[1]
-                        meta_url = f"{BASE_URL}/metaobjects.json?ids={meta_id}"
-                        response = requests.get(meta_url, headers=HEADERS)
-                        if response.ok:
-                            metaobjects = response.json().get("metaobjects", [])
-                            if metaobjects:
-                                fields = metaobjects[0].get("fields", {})
-                                color = fields.get("Label", "Невідомо")
+                ref_data = json.loads(metafield.get("value", "{}"))
+                meta_gid = ref_data.get("id")
+                if meta_gid and "Metaobject/" in meta_gid:
+                    meta_id = meta_gid.split("Metaobject/")[1]
+                    meta_url = f"{BASE_URL}/metaobjects.json?ids={meta_id}"
+                    response = requests.get(meta_url, headers=HEADERS)
+                    if response.ok:
+                        metaobjects = response.json().get("metaobjects", [])
+                        if metaobjects:
+                            fields = metaobjects[0].get("fields", {})
+                            color = fields.get("Label", "Невідомо")
             except json.JSONDecodeError:
                 pass
             break
