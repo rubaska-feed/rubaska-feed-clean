@@ -55,7 +55,7 @@ def get_translation(product_id, locale="uk"):
 def generate_xml(products):
     import json
     ET.register_namespace("g", "http://base.google.com/ns/1.0")
-    rss = ET.Element("rss", {"version": "2.0"})
+    rss = ET.Element("rss", {"version": "2.0", "xmlns:g": "http://base.google.com/ns/1.0"})
     channel = ET.SubElement(rss, "channel")
 
     ET.SubElement(channel, "title").text = 'Інтернет-магазин "Rubaska"'
