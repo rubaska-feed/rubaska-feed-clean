@@ -58,11 +58,22 @@ def generate_xml(products):
     available = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
     item = ET.SubElement(channel, "item", attrib={"available": available})
 
-    ET.SubElement(item, "g:id").text = str(product["id"])
-    ET.SubElement(item, "g:title").text = product.get("title", "Без назви")
-    ET.SubElement(item, "g:description").text = product.get("body_html", "")
-    ET.SubElement(item, "g:link").text = f"https://rubaska.com/products/{product['handle']}"
-    ET.SubElement(item, "g:ads_redirect").text = f"https://rubaska.com/products/{product['handle']}"
+    # Название и описание (обязательные поля)
+    title = product.get("title", "Без назви")
+    description = product.get("body_html", "").strip()
+
+    ET.SubElement(item, "{http://base.google.com/ns/1.0}title").text = title
+    ET.SubElement(item, "name").text = title
+    ET.SubElement(item, "name_ua").text = title
+    ET.SubElement(item, "{http://base.google.com/ns/1.0}description").text = description
+    ET.SubElement(item, "description").text = description
+    ET.SubElement(item, "description_ua").text = description
+
+    # Ссылки
+    link = f"https://rubaska.com/products/{product['handle']}"
+    ET.SubElement(item, "{http://base.google.com/ns/1.0}link").text = link
+    ET.SubElement(item, "{http://base.google.com/ns/1.0}ads_redirect").text = link
+
 
     for i, image in enumerate(product.get("images", [])):
         if i == 0:
