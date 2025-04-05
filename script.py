@@ -50,6 +50,7 @@ def get_translation(product_id, locale="uk"):
 
 # Генерация XML-фида
 def generate_xml(products):
+    import json
     ET.register_namespace("g", "http://base.google.com/ns/1.0")
     rss = ET.Element("rss", {"version": "2.0"})
     channel = ET.SubElement(rss, "channel")
@@ -67,6 +68,7 @@ def generate_xml(products):
     variant_metafields = get_variant_metafields(variant["id"])
 
     available = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
+
     item = ET.SubElement(
         channel,
         "offer",
@@ -75,76 +77,54 @@ def generate_xml(products):
             "available": available,
             "in_stock": "true" if variant.get("inventory_quantity", 0) > 0 else "false",
             "type": "vendor.model",
-            "selling_type": "r"
+            "selling_type": "r",
+            "group_id": str(product["id"])
         }
     )
-      
 
-
-
-    # Название и описание (обязательные поля)
+    # Название и описание
     title = product.get("title", "Без назви")
     description = product.get("body_html", "").strip()
     description_ua = get_translation(product["id"], locale="uk")
 
-    ET.SubElement(item, "{http://base.google.com/ns/1.0}title").text = title
     ET.SubElement(item, "name").text = title
     ET.SubElement(item, "name_ua").text = title
-    ET.SubElement(item, "{http://base.google.com/ns/1.0}description").text = description
-    
     ET.SubElement(item, "description").text = f"<![CDATA[{description}]]>"
-    ET.SubElement(item, "description").text = f"<![CDATA[{description}]]>"
+    ET.SubElement(item, "description_ua").text = f"<![CDATA[{description_ua}]]>"
 
-    # Ссылки
+    # Ссылка на товар
     link = f"https://rubaska.com/products/{product['handle']}"
-    ET.SubElement(item, "{http://base.google.com/ns/1.0}link").text = link
-    ET.SubElement(item, "{http://base.google.com/ns/1.0}ads_redirect").text = link
+    ET.SubElement(item, "g:link").text = link
+    ET.SubElement(item, "g:ads_redirect").text = link
 
-
+    # Фото
     for i, image in enumerate(product.get("images", [])):
         if i == 0:
             ET.SubElement(item, "g:image_link").text = image["src"]
         else:
             ET.SubElement(item, "g:additional_image_link").text = image["src"]
 
+    # Наличие и цена
     ET.SubElement(item, "g:availability").text = "in stock" if variant.get("inventory_quantity", 0) > 0 else "out of stock"
     ET.SubElement(item, "g:price").text = f'{variant.get("price", "0")} UAH'
+
+    # Категория и бренд
     ET.SubElement(item, "g:product_type").text = product.get("product_type", "")
     ET.SubElement(item, "g:brand").text = product.get("vendor", "RUBASKA")
     ET.SubElement(item, "g:identifier_exists").text = "no"
     ET.SubElement(item, "g:condition").text = "new"
 
-    # Размер (только название варианта)
-    size = variant.get("title", "M").split(" / ")[0]
+    # Размер и цвет из названия варианта
+    variant_title_parts = variant.get("title", "").split(" / ")
+    size = variant_title_parts[0] if len(variant_title_parts) > 0 else "M"
+    color = variant_title_parts[1] if len(variant_title_parts) > 1 else "Невідомо"
+
     ET.SubElement(item, "g:size").text = size
+    ET.SubElement(item, "g:color").text = color
 
     # Артикул
     sku = variant.get("sku") or str(product["id"])
     ET.SubElement(item, "g:vendorCode").text = sku
-
-
-    # Цвет (украинское название из Metaobject List)
-    color = "Невідомо"
-    for metafield in variant_metafields + product_metafields:  # ищем и в варианте, и в продукте
-        if metafield.get("namespace") == "custom" and metafield.get("key") == "color":
-            raw_value = metafield.get("value")
-            try:
-                ref_data = json.loads(metafield.get("value", "{}"))
-                meta_gid = ref_data.get("id")
-                if meta_gid and "Metaobject/" in meta_gid:
-                    meta_id = meta_gid.split("Metaobject/")[1]
-                    meta_url = f"{BASE_URL}/metaobjects.json?ids={meta_id}"
-                    response = requests.get(meta_url, headers=HEADERS)
-                    if response.ok:
-                        metaobjects = response.json().get("metaobjects", [])
-                        if metaobjects:
-                            fields = metaobjects[0].get("fields", {})
-                            color = fields.get("Label", "Невідомо")
-            except json.JSONDecodeError:
-                pass
-            break
-
-    ET.SubElement(item, "g:color").text = color
 
     # Видео
     video_url = ""
