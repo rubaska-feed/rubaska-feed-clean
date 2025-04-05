@@ -55,15 +55,18 @@ def get_translation(product_id, locale="uk"):
 def generate_xml(products):
     import json
     ET.register_namespace("g", "http://base.google.com/ns/1.0")
-    rss = ET.Element("rss", {"version": "2.0", "xmlns:g": "http://base.google.com/ns/1.0"})
-    channel = ET.SubElement(rss, "channel")
+    rss = ET.Element("rss", {"version": "2.0"})
+    shop = ET.SubElement(rss, "shop")
 
-    ET.SubElement(channel, "title").text = 'Інтернет-магазин "Rubaska"'
-    ET.SubElement(channel, "link").text = "https://rubaska.com/"
-    ET.SubElement(channel, "description").text = "RSS 2.0 product data feed"
+    ET.SubElement(shop, "name").text = 'Інтернет-магазин "Rubaska"'
+    ET.SubElement(shop, "company").text = "Rubaska"
+    ET.SubElement(shop, "url").text = "https://rubaska.com/"
 
-    if not products:
-        return ET.ElementTree(rss)
+    # Категории
+    categories = ET.SubElement(shop, "categories")
+    ET.SubElement(categories, "category", id="129880800", parentId="129880784").text = "Чоловічі сорочки"
+
+    offers = ET.SubElement(shop, "offers")
 
     for product in products:
         variant = product["variants"][0]
@@ -79,53 +82,72 @@ def generate_xml(products):
         size = variant_title_parts[0] if len(variant_title_parts) > 0 else "M"
         color = variant_title_parts[1] if len(variant_title_parts) > 1 else "Невідомо"
         sku = variant.get("sku") or safe_id
-        availability = "in stock" if variant.get("inventory_quantity", 0) > 0 else "out of stock"
+        available = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
 
-        item = ET.SubElement(channel, "item")
-        ET.SubElement(item, "g:id").text = safe_id
-        ET.SubElement(item, "name").text = product.get("title", "Без назви")
-        ET.SubElement(item, "name_ua").text = product.get("title", "Без назви")
-        ET.SubElement(item, "description").text = f"<![CDATA[{description}]]>"
-        ET.SubElement(item, "description_ua").text = f"<![CDATA[{description_ua}]]>"
-        
+        offer = ET.SubElement(
+            offers,
+            "offer",
+            attrib={
+                "id": safe_id,
+                "available": available,
+                "in_stock": "true" if available == "true" else "false",
+                "type": "vendor.model",
+                "selling_type": "r",
+                "group_id": safe_id
+            }
+        )
+
+        ET.SubElement(offer, "name").text = product.get("title", "Без назви")
+        ET.SubElement(offer, "name_ua").text = product.get("title", "Без назви")
+        ET.SubElement(offer, "description").text = f"<![CDATA[{description}]]>"
+        ET.SubElement(offer, "description_ua").text = f"<![CDATA[{description_ua}]]>"
+
         link = f"https://rubaska.com/products/{product['handle']}"
-        ET.SubElement(item, "g:link").text = link
-        ET.SubElement(item, "g:ads_redirect").text = link
+        ET.SubElement(offer, "url").text = link
 
+        # Фото
         for i, image in enumerate(product.get("images", [])):
-            if i == 0:
-                ET.SubElement(item, "g:image_link").text = image["src"]
-            else:
-                ET.SubElement(item, "g:additional_image_link").text = image["src"]
+            ET.SubElement(offer, "picture").text = image["src"]
 
         # Видео
-        video_url = ""
         for metafield in product_metafields:
             if metafield.get("namespace") == "custom" and metafield.get("key") == "video_url":
-                video_url = metafield.get("value", "")
+                ET.SubElement(offer, "video").text = metafield.get("value", "")
                 break
-        if video_url:
-            ET.SubElement(item, "g:video_link").text = video_url
 
-        ET.SubElement(item, "g:availability").text = availability
-        ET.SubElement(item, "g:price").text = f'{variant.get("price", "0")} UAH'
-        ET.SubElement(item, "g:product_type").text = product.get("product_type", "")
-        ET.SubElement(item, "g:brand").text = product.get("vendor", "RUBASKA")
-        ET.SubElement(item, "g:identifier_exists").text = "no"
-        ET.SubElement(item, "g:condition").text = "new"
-        ET.SubElement(item, "g:color").text = color
-        ET.SubElement(item, "g:size").text = size
-        ET.SubElement(item, "g:vendorCode").text = sku
+        # Цены и обязательные поля
+        ET.SubElement(offer, "price").text = variant.get("price", "0")
+        ET.SubElement(offer, "currencyId").text = "UAH"
+        ET.SubElement(offer, "categoryId").text = "129880800"
+        ET.SubElement(offer, "portal_category_id").text = "129880800"
+        ET.SubElement(offer, "vendor").text = product.get("vendor", "RUBASKA")
+        ET.SubElement(offer, "model").text = variant.get("title", "Без моделі")
+        ET.SubElement(offer, "vendorCode").text = sku
+        ET.SubElement(offer, "country").text = "Туреччина"
 
-        # Статичные характеристики
-        constant_details = [
-            ("Країна виробник", "Туреччина"),
-            ("Де_знаходиться_товар", "Одеса"),
+        # Характеристики
+        ET.SubElement(offer, "param", name="Колір").text = color
+        ET.SubElement(offer, "param", name="Розмір").text = size
+
+        # Постоянные характеристики
+        constant_params = [
+            ("Тип виробу", "Сорочка"),
+            ("Міжнародний розмір", size),
+            ("Обхват шиї", "39"),
+            ("Обхват грудей", "100"),
+            ("Обхват талії", "98"),
+            ("Розміри чоловічих сорочок", "46"),
+            ("Тип сорочкового коміра", "Класичний"),
+            ("Застежка", "гудзики"),
+            ("Стан", "Новий"),
+            ("Довжина рукава", "65"),
+            ("Тип тканини", "Бавовна"),
+            ("Тип крою", "Приталена"),
+            ("Фасон рукава", "Довгий"),
+            ("Візерунки і принти", "Без візерунків і принтів"),
         ]
-        for name, value in constant_details:
-            detail = ET.SubElement(item, "g:product_detail")
-            ET.SubElement(detail, "g:attribute_name").text = name
-            ET.SubElement(detail, "g:attribute_value").text = value
+        for name, value in constant_params:
+            ET.SubElement(offer, "param", name=name).text = value
 
     return ET.ElementTree(rss)
 
