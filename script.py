@@ -1,3 +1,4 @@
+import json
 import os
 import requests
 import xml.etree.ElementTree as ET
@@ -66,7 +67,21 @@ def generate_xml(products):
     variant_metafields = get_variant_metafields(variant["id"])
 
     available = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
-    item = ET.SubElement(channel, "item", attrib={"available": available})
+    item = ET.SubElement(
+        channel,
+        "offer",
+        attrib={
+            "id": str(product["id"]),
+            "available": available,
+            "in_stock": "true" if variant.get("inventory_quantity", 0) > 0 else "false",
+            "type": "vendor.model",
+            "selling_type": "r",
+            "selling_type": "r",
+         }
+     )   
+      
+
+
 
     # Название и описание (обязательные поля)
     title = product.get("title", "Без назви")
@@ -110,17 +125,31 @@ def generate_xml(products):
 
     # Цвет (украинское название из Metaobject)
     color = "Невідомо"
+
     for metafield in variant_metafields:
-        if metafield.get("namespace") == "custom" and metafield.get("key") == "color":
-            metaobject_id = metafield.get("value")
-            meta_url = f"{BASE_URL}/metaobjects.json?ids={metaobject_id}"
-            response = requests.get(meta_url, headers=HEADERS)
-            if response.ok:
-                metaobjects = response.json().get("metaobjects", [])
-                if metaobjects:
-                    fields = metaobjects[0].get("fields", {})
-                    color = fields.get("title_ua", "Невідомо")
-            break
+    if metafield.get("namespace") == "custom" and metafield.get("key") == "color":
+        raw_value = metafield.get("value")
+        try:
+            # Преобразуем строку в список словарей
+            objects = json.loads(raw_value)
+            if objects and isinstance(objects, list):
+                meta_gid = objects[0].get("id")
+                # Извлекаем ID после 'Metaobject/'
+                if meta_gid and "Metaobject/" in meta_gid:
+                    meta_id = meta_gid.split("Metaobject/")[1]
+                    # Делаем запрос к metaobject
+                    meta_url = f"{BASE_URL}/metaobjects.json?ids={meta_id}"
+                    response = requests.get(meta_url, headers=HEADERS)
+                    if response.ok:
+                        metaobjects = response.json().get("metaobjects", [])
+                        if metaobjects:
+                            fields = metaobjects[0].get("fields", {})
+                            # Пытаемся вытащить название цвета
+                            color = fields.get("title_ua", "Невідомо")
+        except json.JSONDecodeError:
+            pass
+        break
+    
     ET.SubElement(item, "g:color").text = color
 
     # Видео
