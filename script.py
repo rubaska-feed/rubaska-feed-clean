@@ -43,8 +43,11 @@ def get_translation(product_id, locale="uk"):
     url = f"{BASE_URL}/translations/products/{product_id}/{locale}.json"
     response = requests.get(url, headers=HEADERS)
     if response.ok:
-        translations = response.json().get("translation", {})
-        return translations.get("body_html", "").strip()
+        data = response.json()
+        translations = data.get("translation", {})
+        body = translations.get("body_html", "").strip()
+        if body:
+             if body:
     return ""
 
 
@@ -92,6 +95,9 @@ def generate_xml(products):
     title = product.get("title", "Без назви")
     description = product.get("body_html", "").strip()
     description_ua = get_translation(product["id"], locale="uk")
+    if not description_ua:
+        description_ua = description  # fallback
+        
 
     ET.SubElement(item, "name").text = title
     ET.SubElement(item, "name_ua").text = title
