@@ -68,17 +68,23 @@ def generate_xml(products):
     variant_metafields = get_variant_metafields(variant["id"])
 
     available = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
+    safe_id = int(product["id"]) % 2147483647  # Безопасный ID для Prom.ua
 
+    # Категории
+    categories = ET.SubElement(channel, "categories")
+    ET.SubElement(categories, "category", id="129880800", parentId="129880784").text = "Чоловічі сорочки"
+
+    # Оффер
     item = ET.SubElement(
         channel,
         "offer",
         attrib={
-            "id": str(product["id"]),
+            "id": str(safe_id),
             "available": available,
             "in_stock": "true" if variant.get("inventory_quantity", 0) > 0 else "false",
             "type": "vendor.model",
             "selling_type": "r",
-            "group_id": str(product["id"])
+            "group_id": str(safe_id)
         }
     )
 
@@ -91,6 +97,12 @@ def generate_xml(products):
     ET.SubElement(item, "name_ua").text = title
     ET.SubElement(item, "description").text = f"<![CDATA[{description}]]>"
     ET.SubElement(item, "description_ua").text = f"<![CDATA[{description_ua}]]>"
+
+    # Обязательные поля Prom.ua
+    ET.SubElement(item, "vendor").text = product.get("vendor", "RUBASKA")
+    ET.SubElement(item, "model").text = variant.get("title", "Без моделі")
+    ET.SubElement(item, "categoryId").text = "129880800"
+    ET.SubElement(item, "portal_category_id").text = "129880800"
 
     # Ссылка на товар
     link = f"https://rubaska.com/products/{product['handle']}"
@@ -123,7 +135,7 @@ def generate_xml(products):
     ET.SubElement(item, "g:color").text = color
 
     # Артикул
-    sku = variant.get("sku") or str(product["id"])
+    sku = variant.get("sku") or str(safe_id)
     ET.SubElement(item, "g:vendorCode").text = sku
 
     # Видео
