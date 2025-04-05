@@ -81,6 +81,7 @@ def generate_xml(products):
         variant_title_parts = variant.get("title", "").split(" / ")
         size = variant_title_parts[0] if len(variant_title_parts) > 0 else "M"
         color = variant_title_parts[1] if len(variant_title_parts) > 1 else "Невідомо"
+        collar_type = variant_title_parts[2] if len(variant_title_parts) > 2 else "Класичний"
         sku = variant.get("sku") or safe_id
         available = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
 
@@ -128,6 +129,7 @@ def generate_xml(products):
         # Характеристики
         ET.SubElement(offer, "param", name="Колір").text = color
         ET.SubElement(offer, "param", name="Розмір").text = size
+        ET.SubElement(offer, "param", name="Тип сорочкового коміра").text = collar_type
 
         # Постоянные характеристики
         constant_params = [
