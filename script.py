@@ -131,22 +131,35 @@ def generate_xml(products):
         ET.SubElement(offer, "param", name="Розмір").text = size
         ET.SubElement(offer, "param", name="Тип сорочкового коміра").text = collar_type
 
+        # Характеристики из метафилдов
+        field_mapping = {
+            "Тип виробу": "product_type",
+            "Застежка": "fastening",
+            "Тип тканини": "fabric_type",
+            "Тип крою": "cut_type",
+            "Фасон рукава": "sleeve_style",
+            "Візерунки і принти": "pattern_and_prints",
+        }
+
+        for label, key in field_mapping.items():
+            value = ""
+            for metafield in product_metafields:
+                if metafield.get("namespace") == "custom" and metafield.get("key") == key:
+                    value = metafield.get("value", "")
+                    break
+            if value:
+                ET.SubElement(offer, "param", name=label).text = value
+
+
         # Постоянные характеристики
         constant_params = [
-            ("Тип виробу", "Сорочка"),
             ("Міжнародний розмір", size),
-            ("Обхват шиї", "39"),
-            ("Обхват грудей", "100"),
-            ("Обхват талії", "98"),
-            ("Розміри чоловічих сорочок", "46"),
-            ("Тип сорочкового коміра", "Класичний"),
-            ("Застежка", "гудзики"),
+            ("Обхват шиї", ""),
+            ("Обхват грудей", ""),
+            ("Обхват талії", ""),
+            ("Розміри чоловічих сорочок", ""),
             ("Стан", "Новий"),
-            ("Довжина рукава", "65"),
-            ("Тип тканини", "Бавовна"),
-            ("Тип крою", "Приталена"),
-            ("Фасон рукава", "Довгий"),
-            ("Візерунки і принти", "Без візерунків і принтів"),
+            ("Довжина рукава", ""),
         ]
         for name, value in constant_params:
             ET.SubElement(offer, "param", name=name).text = value
