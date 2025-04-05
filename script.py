@@ -140,7 +140,7 @@ def generate_xml(products):
                             metaobjects = response.json().get("metaobjects", [])
                             if metaobjects:
                                 fields = metaobjects[0].get("fields", {})
-                                color = fields.get("title_ua", "Невідомо")
+                                color = fields.get("Label", "Невідомо")
             except json.JSONDecodeError:
                 pass
             break
