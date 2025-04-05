@@ -75,10 +75,9 @@ def generate_xml(products):
             "available": available,
             "in_stock": "true" if variant.get("inventory_quantity", 0) > 0 else "false",
             "type": "vendor.model",
-            "selling_type": "r",
-            "selling_type": "r",
-         }
-     )   
+            "selling_type": "r"
+        }
+    )
       
 
 
@@ -123,33 +122,29 @@ def generate_xml(products):
     sku = variant.get("sku") or str(product["id"])
     ET.SubElement(item, "g:vendorCode").text = sku
 
-    # Цвет (украинское название из Metaobject)
-    color = "Невідомо"
 
+    # Цвет (украинское название из Metaobject List)
+    color = "Невідомо"
     for metafield in variant_metafields:
-    if metafield.get("namespace") == "custom" and metafield.get("key") == "color":
-        raw_value = metafield.get("value")
-        try:
-            # Преобразуем строку в список словарей
-            objects = json.loads(raw_value)
-            if objects and isinstance(objects, list):
-                meta_gid = objects[0].get("id")
-                # Извлекаем ID после 'Metaobject/'
-                if meta_gid and "Metaobject/" in meta_gid:
-                    meta_id = meta_gid.split("Metaobject/")[1]
-                    # Делаем запрос к metaobject
-                    meta_url = f"{BASE_URL}/metaobjects.json?ids={meta_id}"
-                    response = requests.get(meta_url, headers=HEADERS)
-                    if response.ok:
-                        metaobjects = response.json().get("metaobjects", [])
-                        if metaobjects:
-                            fields = metaobjects[0].get("fields", {})
-                            # Пытаемся вытащить название цвета
-                            color = fields.get("title_ua", "Невідомо")
-        except json.JSONDecodeError:
-            pass
-        break
-    
+        if metafield.get("namespace") == "custom" and metafield.get("key") == "color":
+            raw_value = metafield.get("value")
+            try:
+                objects = json.loads(raw_value)
+                if objects and isinstance(objects, list):
+                    meta_gid = objects[0].get("id")
+                    if meta_gid and "Metaobject/" in meta_gid:
+                        meta_id = meta_gid.split("Metaobject/")[1]
+                        meta_url = f"{BASE_URL}/metaobjects.json?ids={meta_id}"
+                        response = requests.get(meta_url, headers=HEADERS)
+                        if response.ok:
+                            metaobjects = response.json().get("metaobjects", [])
+                            if metaobjects:
+                                fields = metaobjects[0].get("fields", {})
+                                color = fields.get("title_ua", "Невідомо")
+            except json.JSONDecodeError:
+                pass
+            break
+
     ET.SubElement(item, "g:color").text = color
 
     # Видео
