@@ -141,7 +141,7 @@ def generate_xml(products):
         ET.SubElement(offer, "categoryId").text = "129880800"
         ET.SubElement(offer, "portal_category_id").text = "129880800"
         ET.SubElement(offer, "vendor").text = product.get("vendor", "RUBASKA")
-        ET.SubElement(offer, "model").text = variant.get("title", "Без моделі")
+        ET.SubElement(offer, "model").text = variant.get("title", "Сорочка Без моделі")
         ET.SubElement(offer, "vendorCode").text = sku
         ET.SubElement(offer, "country").text = "Туреччина"
 
@@ -158,6 +158,10 @@ def generate_xml(products):
             "Тип крою": "cut_type",
             "Фасон рукава": "sleeve_style",
             "Візерунки і принти": "pattern_and_prints",
+            "Манжет сорочки": "shirt_cuff",
+            "Стиль": "style",
+            "Склад": "fabric_composition",
+            "Кишені": "pockets",
         }
 
         for label, key in field_mapping.items():
