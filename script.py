@@ -73,6 +73,13 @@ def generate_xml(products):
             "portal_url": "https://prom.ua/Muzhskie-rubashki",
             "subdivision_id": "348"
         },
+        "Теніска": {
+            "category_id": "129880800",
+            "parent_id": "129880784",
+            "group_name": "Чоловічі сорочки",
+            "portal_url": "https://prom.ua/Muzhskie-rubashki",
+            "subdivision_id": "348"
+        },
         "Футболка": {
             "category_id": "129880791",
             "parent_id": "129880784",
