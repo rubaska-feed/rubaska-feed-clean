@@ -54,6 +54,8 @@ def get_translation(product_id, locale="uk"):
 # Генерация XML-фида
 def generate_xml(products):
     import json
+    import xml.etree.ElementTree as ET
+    
     ET.register_namespace("g", "http://base.google.com/ns/1.0")
     rss = ET.Element("rss", {"version": "2.0"})
     shop = ET.SubElement(rss, "shop")
@@ -63,8 +65,36 @@ def generate_xml(products):
     ET.SubElement(shop, "url").text = "https://rubaska.com/"
 
     # Категории
+    category_info = {
+        "Сорочка": {
+            "category_id": "129880800",
+            "parent_id": "129880784",
+            "group_name": "Чоловічі сорочки",
+            "portal_url": "https://prom.ua/Muzhskie-rubashki",
+            "subdivision_id": "348"
+        },
+        "Футболка": {
+            "category_id": "129880791",
+            "parent_id": "129880784",
+            "group_name": "Чоловічі футболки та майки",
+            "portal_url": "https://prom.ua/Futbolki-muzhskie",
+            "subdivision_id": "35506"
+        },
+        "Жилет": {
+            "category_id": "129883725",
+            "parent_id": "129880784",
+            "group_name": "Святкові жилети",
+            "portal_url": "https://prom.ua/ua/Muzhskie-zhiletki-i-bezrukavki-1",
+            "subdivision_id": "35513"
+        },
+    }
+
+
+
+    
     categories = ET.SubElement(shop, "categories")
-    ET.SubElement(categories, "category", id="129880800", parentId="129880784").text = "Чоловічі сорочки"
+    for cat in category_info.values():
+        ET.SubElement(categories, "category", id=cat["category_id"], parentId=cat["parent_id"]).text = cat["group_name"]
 
     offers = ET.SubElement(shop, "offers")
 
@@ -77,6 +107,7 @@ def generate_xml(products):
         description = product.get("body_html", "").strip()
         description_ua = get_translation(product["id"], "uk") or description or "Опис відсутній"
 
+        
         # Variant info
         variant_title_parts = variant.get("title", "").split(" / ")
         size = variant_title_parts[0] if len(variant_title_parts) > 0 else "M"
@@ -85,6 +116,24 @@ def generate_xml(products):
       
         sku = variant.get("sku") or safe_id
         available = "true" if variant.get("inventory_quantity", 0) > 0 else "false"
+
+        # Определение категории
+        product_type = ""
+        for metafield in product_metafields:
+            if metafield.get("namespace") == "custom" and metafield.get("key") == "product_type":
+                product_type = metafield.get("value", "")
+                break
+
+        category_id = "129880800"
+        portal_category_id = "129880800"
+        category_details = None
+
+        if product_type in category_info:
+            category = category_info[product_type]
+            category_id = category["category_id"]
+            portal_category_id = category["category_id"]
+            category_details = category
+
 
         offer = ET.SubElement(
             offers,
@@ -138,8 +187,8 @@ def generate_xml(products):
         # Цены и обязательные поля
         ET.SubElement(offer, "price").text = variant.get("price", "0")
         ET.SubElement(offer, "currencyId").text = "UAH"
-        ET.SubElement(offer, "categoryId").text = "129880800"
-        ET.SubElement(offer, "portal_category_id").text = "129880800"
+        ET.SubElement(offer, "categoryId").text = category_id
+        ET.SubElement(offer, "portal_category_id").text = portal_category_id
         ET.SubElement(offer, "vendor").text = product.get("vendor", "RUBASKA")
         ET.SubElement(offer, "model").text = variant.get("title", "Сорочка Без моделі")
         ET.SubElement(offer, "vendorCode").text = sku
@@ -178,12 +227,23 @@ def generate_xml(products):
         constant_params = [
             ("Міжнародний розмір", size),
             ("Стан", "Новий"),
-            ("Довжина рукава", ""),
             ("Де знаходиться товар", "Одеса"),
             ("Країна виробник", "Туреччина"),
         ]
         for name, value in constant_params:
             ET.SubElement(offer, "param", name=name).text = value
+
+        # Добавление product_detail по категории
+        if category_details:
+            for attr_name, attr_value in {
+                "Ідентифікатор_підрозділу": category_details["subdivision_id"],
+                "Посилання_підрозділу": category_details["portal_url"],
+                "Назва_групи": category_details["group_name"]
+            }.items():
+                detail = ET.SubElement(offer, "{http://base.google.com/ns/1.0}product_detail")
+                ET.SubElement(detail, "{http://base.google.com/ns/1.0}attribute_name").text = attr_name
+                ET.SubElement(detail, "{http://base.google.com/ns/1.0}attribute_value").text = attr_value
+
 
     return ET.ElementTree(rss)
 
