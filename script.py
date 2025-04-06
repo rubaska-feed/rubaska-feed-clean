@@ -48,7 +48,9 @@ def get_products():
     return all_products
 
 # Получение метафилдов товара
+import time
 def get_metafields(product_id):
+    time.sleep(0.5)  # добавляем 500 мс задержки
     url = f"{BASE_URL}/products/{product_id}/metafields.json"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
