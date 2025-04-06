@@ -19,10 +19,33 @@ HEADERS = {
 
 # Получение товаров
 def get_products():
-    url = f"{BASE_URL}/products.json?limit=5&status=active"
-    response = requests.get(url, headers=HEADERS)
-    response.raise_for_status()
-    return response.json()["products"]
+    all_products = []
+    page_info = None
+    limit = 250  # Максимум разрешённый Shopify
+
+    while True:
+        url = f"{BASE_URL}/products.json?limit={limit}&status=active"
+        if page_info:
+            url += f"&page_info={page_info}"
+
+        response = requests.get(url, headers=HEADERS)
+        response.raise_for_status()
+        data = response.json().get("products", [])
+        all_products.extend(data)
+
+        # Проверяем есть ли следующая страница
+        link_header = response.headers.get("Link", "")
+        if 'rel=\"next\"' in link_header:
+            import re
+            match = re.search(r'<[^>]+page_info=([^&>]+)[^>]*>; rel=\"next\"', link_header)
+            if match:
+                page_info = match.group(1)
+            else:
+                break
+        else:
+            break
+
+    return all_products
 
 # Получение метафилдов товара
 def get_metafields(product_id):
