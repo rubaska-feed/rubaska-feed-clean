@@ -55,7 +55,10 @@ def get_metafields(product_id):
     return response.json().get("metafields", [])
 
 # Получение метафилдов варианта
+import time
+
 def get_variant_metafields(variant_id):
+    time.sleep(0.5)  # пауза 500 мс между запросами
     url = f"{BASE_URL}/variants/{variant_id}/metafields.json"
     response = requests.get(url, headers=HEADERS)
     response.raise_for_status()
