@@ -135,7 +135,7 @@ def generate_xml(products):
         variant = product["variants"][0]
         safe_id = str(int(product["id"]) % 2147483647)
         product_metafields = get_metafields(product["id"])
-        variant_metafields = get_variant_metafields(variant["id"])
+        variant_metafields = []  # не запрашиваем, оставляем пустым список
 
         description = product.get("body_html", "").strip()
         description_ua = get_translation(product["id"], "uk") or description or "Опис відсутній"
